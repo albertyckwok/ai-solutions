@@ -7,6 +7,7 @@ JSON-RPC 2.0 requests and routes them to appropriate methods.
 
 import asyncio
 import logging
+import re
 import yaml
 from typing import Dict, Any, Optional
 from a2a_models import (
@@ -403,15 +404,66 @@ Steps:"""
                 
                 logger.info(f"✅ Planner response: {plan[:200]}...")
                 
-                # Extract steps from plan
+                # Extract steps from plan with robust parsing
                 steps = []
+                
+                # Method 1: Look for explicit step markers (Step 1:, Step 2:, etc.)
+                step_pattern = re.compile(r'^Step\s*\d+[:\-\.]\s*(.+)$', re.IGNORECASE)
+                numbered_pattern = re.compile(r'^\d+[\.\)]\s*(.+)$')
+                dash_pattern = re.compile(r'^[-•]\s*(.+)$')
+                
                 for line in plan.split("\n"):
                     line = line.strip()
-                    if line and (line.startswith("Step") or line.startswith("-") or (len(line) > 10 and not line.startswith("Your"))):
-                        # Clean up the step
-                        clean_step = line.replace("Step 1:", "").replace("Step 2:", "").replace("Step 3:", "").replace("Step 4:", "").replace("-", "").strip()
-                        if clean_step and len(clean_step) > 10:
-                            steps.append(clean_step)
+                    if not line or len(line) < 10:
+                        continue
+                    
+                    # Skip common non-step lines
+                    if any(line.startswith(prefix) for prefix in ["Your", "Query:", "Break down", "Format"]):
+                        continue
+                    
+                    clean_step = None
+                    
+                    # Try Step N: pattern
+                    match = step_pattern.match(line)
+                    if match:
+                        clean_step = match.group(1).strip()
+                    else:
+                        # Try numbered list pattern (1. or 1))
+                        match = numbered_pattern.match(line)
+                        if match:
+                            clean_step = match.group(1).strip()
+                        else:
+                            # Try dash/bullet pattern
+                            match = dash_pattern.match(line)
+                            if match:
+                                clean_step = match.group(1).strip()
+                            else:
+                                # Fallback: if line is substantial and doesn't start with common prefixes
+                                if len(line) > 15 and not any(line.lower().startswith(prefix) for prefix in ["step", "your", "query", "break", "format", "steps:"]):
+                                    clean_step = line
+                    
+                    # Add step if valid
+                    if clean_step and len(clean_step) > 10:
+                        steps.append(clean_step)
+                
+                # Method 2: If no steps found, try splitting by common separators
+                if not steps and plan:
+                    # Look for sections separated by double newlines or numbered items
+                    sections = re.split(r'\n\s*\n', plan)
+                    for section in sections:
+                        section = section.strip()
+                        # Try to extract first meaningful sentence from each section
+                        sentences = re.split(r'[\.!?]\s+', section)
+                        for sentence in sentences:
+                            sentence = sentence.strip()
+                            if len(sentence) > 15 and not any(sentence.lower().startswith(prefix) for prefix in ["step", "your", "query", "break", "format"]):
+                                # Check if it looks like a step (has action verbs or is a complete thought)
+                                if any(word in sentence.lower()[:20] for word in ["analyze", "identify", "examine", "review", "determine", "find", "gather", "check", "verify", "compare"]):
+                                    steps.append(sentence)
+                                    if len(steps) >= 4:
+                                        break
+                        if len(steps) >= 4:
+                            break
                 
                 # Log the event
                 duration_ms = (time.time() - start_time) * 1000

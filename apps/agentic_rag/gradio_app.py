@@ -578,33 +578,57 @@ def a2a_chat(message: str, history: List[List[str]], agent_type: str, use_cot: b
             # Use distributed specialized agents via A2A protocol
             print("🔄 Using distributed CoT agents via A2A protocol...")
             
-            # Step 1: Call Planner Agent via A2A
+            # Step 1: Call Planner Agent via A2A with retry logic
             print("\n1️⃣ Calling Planner Agent...")
-            planner_response = a2a_client.make_request(
-                "agent.query",
-                {
-                    "agent_id": "planner_agent_v1",
-                    "query": message,
-                    "context": []
-                },
-                f"planner-{int(time.time())}"
-            )
+            max_retries = 5
+            steps = []
+            plan = ""
+            planner_result = {}
             
-            if planner_response.get("error"):
-                error_msg = f"Planner Error: {json.dumps(planner_response['error'], indent=2)}"
-                print(f"❌ {error_msg}")
-                history.append([message, error_msg])
-                return history
+            for attempt in range(1, max_retries + 1):
+                print(f"   Attempt {attempt}/{max_retries}...")
+                planner_response = a2a_client.make_request(
+                    "agent.query",
+                    {
+                        "agent_id": "planner_agent_v1",
+                        "query": message,
+                        "context": []
+                    },
+                    f"planner-{int(time.time())}-{attempt}"
+                )
+                
+                if planner_response.get("error"):
+                    error_msg = f"Planner Error (attempt {attempt}): {json.dumps(planner_response['error'], indent=2)}"
+                    print(f"   ⚠️ {error_msg}")
+                    if attempt == max_retries:
+                        # Final attempt failed, return error
+                        print(f"❌ Planner failed after {max_retries} attempts")
+                        history.append([message, f"Planner Error: Failed to generate steps after {max_retries} attempts. {error_msg}"])
+                        return history
+                    continue  # Try again
+                
+                planner_result = planner_response.get("result", {})
+                plan = planner_result.get("plan", "")
+                steps = planner_result.get("steps", [])
+                
+                # Extract clean steps from plan (filter out empty lines)
+                if not steps or len(steps) == 0:
+                    steps = [s.strip() for s in plan.split("\n") if s.strip() and not s.strip().startswith("Step")]
+                
+                # Check if we have valid steps
+                if steps and len(steps) > 0:
+                    print(f"✅ Planner created {len(steps)} steps (attempt {attempt})")
+                    break
+                else:
+                    print(f"   ⚠️ No steps generated in attempt {attempt}, retrying...")
+                    if attempt == max_retries:
+                        # All retries exhausted
+                        error_msg = f"Planner failed to generate steps after {max_retries} attempts. The planner returned a plan but no extractable steps were found."
+                        print(f"❌ {error_msg}")
+                        history.append([message, f"Planner Error: {error_msg}\n\nPlan received:\n{plan}"])
+                        return history
             
-            planner_result = planner_response.get("result", {})
-            plan = planner_result.get("plan", "")
-            steps = planner_result.get("steps", [])
-            
-            # Extract clean steps from plan (filter out empty lines)
-            if not steps or len(steps) == 0:
-                steps = [s.strip() for s in plan.split("\n") if s.strip() and not s.strip().startswith("Step")]
-            
-            print(f"✅ Planner created {len(steps)} steps")
+            # Log the successful planning
             history.append([None, f"🎯 Planning:\n{plan}"])
             
             # Collect reasoning steps
