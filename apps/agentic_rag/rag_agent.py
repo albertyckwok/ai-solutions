@@ -13,16 +13,27 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 class RAGAgent:
-    def __init__(self, vector_store: VectorStore, openai_api_key: str, use_cot: bool = False, collection: str = None, skip_analysis: bool = False):
-        """Initialize RAG agent with vector store and LLM"""
+    def __init__(self, vector_store: VectorStore, openai_api_key: str, use_cot: bool = False, collection: str = None, skip_analysis: bool = False, max_response_length: int = 2048):
+        """Initialize RAG agent with vector store and LLM
+        
+        Args:
+            vector_store: Vector store for retrieving context
+            openai_api_key: OpenAI API key
+            use_cot: Whether to use Chain of Thought reasoning
+            collection: Collection to search in (PDF, Repository, or General Knowledge)
+            skip_analysis: Whether to skip query analysis (kept for backward compatibility)
+            max_response_length: Maximum number of tokens to generate in responses (default: 2048)
+        """
         self.vector_store = vector_store
         self.use_cot = use_cot
         self.collection = collection
+        self.max_response_length = max_response_length
         # skip_analysis parameter kept for backward compatibility but no longer used
         self.llm = ChatOpenAI(
             model="gpt-4-turbo-preview",
             temperature=0,
-            api_key=openai_api_key
+            api_key=openai_api_key,
+            max_tokens=max_response_length
         )
         
         # Initialize specialized agents

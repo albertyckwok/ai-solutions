@@ -12,6 +12,13 @@ from store import VectorStore
 from local_rag_agent import LocalRAGAgent
 from rag_agent import RAGAgent
 
+# Try to import OraDBVectorStore
+try:
+    from OraDBVectorStore import OraDBVectorStore
+    ORACLE_DB_AVAILABLE = True
+except ImportError:
+    ORACLE_DB_AVAILABLE = False
+
 # A2A Protocol imports
 from a2a_models import A2ARequest, A2AResponse
 from a2a_handler import A2AHandler
@@ -49,7 +56,19 @@ app.add_middleware(
 
 # Initialize components
 pdf_processor = PDFProcessor()
-vector_store = VectorStore()
+
+# Initialize vector store (prefer Oracle DB if available)
+if ORACLE_DB_AVAILABLE:
+    try:
+        vector_store = OraDBVectorStore()
+        print("Using Oracle AI Database 26ai for vector storage")
+    except Exception as e:
+        print(f"Error initializing Oracle DB: {str(e)}")
+        print("Falling back to ChromaDB")
+        vector_store = VectorStore()
+else:
+    vector_store = VectorStore()
+    print("Using ChromaDB for vector storage (Oracle DB not available)")
 
 # Check for Ollama availability
 try:

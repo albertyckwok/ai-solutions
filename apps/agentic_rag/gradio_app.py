@@ -36,10 +36,10 @@ def load_config():
     try:
         with open('config.yaml', 'r') as f:
             config = yaml.safe_load(f)
-        return config.get('HUGGING_FACE_HUB_TOKEN')
+        return config if config else {}
     except Exception as e:
         print(f"Error loading config: {str(e)}")
-        return None
+        return {}
 
 # Initialize components
 pdf_processor = PDFProcessor()
@@ -60,20 +60,22 @@ else:
     print("Using ChromaDB for vector storage (Oracle DB not available)")
 
 # Initialize agents
-hf_token = load_config()
+config = load_config()
+hf_token = config.get('HUGGING_FACE_HUB_TOKEN')
+max_response_length = config.get('MAX_RESPONSE_LENGTH', 2048)  # Default to 2048 if not specified
 openai_key = os.getenv("OPENAI_API_KEY")
 
 # Initialize agents with use_cot=True to ensure CoT is available
 # Default to Ollama qwen2, fall back to Mistral if available
 try:
-    local_agent = LocalRAGAgent(vector_store, model_name="ollama:qwen2", use_cot=True)
+    local_agent = LocalRAGAgent(vector_store, model_name="ollama:qwen2", use_cot=True, max_response_length=max_response_length)
     print("Using Ollama qwen2 as default model")
 except Exception as e:
     print(f"Could not initialize Ollama qwen2: {str(e)}")
-    local_agent = LocalRAGAgent(vector_store, use_cot=True) if hf_token else None
+    local_agent = LocalRAGAgent(vector_store, use_cot=True, max_response_length=max_response_length) if hf_token else None
     print("Falling back to Local Mistral model" if hf_token else "No local model available")
     
-openai_agent = RAGAgent(vector_store, openai_api_key=openai_key, use_cot=True) if openai_key else None
+openai_agent = RAGAgent(vector_store, openai_api_key=openai_key, use_cot=True, max_response_length=max_response_length) if openai_key else None
 
 # A2A Client for testing
 class A2AClient:
@@ -220,7 +222,7 @@ def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool,
                 print(f"Error: {response_text}")
                 return history + [[message, response_text]]
             agent = RAGAgent(vector_store, openai_api_key=openai_key, use_cot=use_cot, 
-                            collection=collection, skip_analysis=skip_analysis)
+                            collection=collection, skip_analysis=skip_analysis, max_response_length=max_response_length)
         elif model_type == "Local (Mistral)":
             # For HF models, we need the token
             if not hf_token:
@@ -228,11 +230,11 @@ def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool,
                 print(f"Error: {response_text}")
                 return history + [[message, response_text]]
             agent = LocalRAGAgent(vector_store, use_cot=use_cot, collection=collection, 
-                                 skip_analysis=skip_analysis, quantization=quantization)
+                                 skip_analysis=skip_analysis, quantization=quantization, max_response_length=max_response_length)
         else:  # Ollama models
             try:
                 agent = LocalRAGAgent(vector_store, model_name=model_name, use_cot=use_cot, 
-                                     collection=collection, skip_analysis=skip_analysis)
+                                     collection=collection, skip_analysis=skip_analysis, max_response_length=max_response_length)
             except Exception as e:
                 response_text = f"Error initializing Ollama model: {str(e)}"
                 print(f"Error: {response_text}")

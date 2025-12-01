@@ -27,15 +27,16 @@ logger = logging.getLogger(__name__)
 
 class LocalLLM:
     """Wrapper for local LLM to match LangChain's ChatOpenAI interface"""
-    def __init__(self, pipeline):
+    def __init__(self, pipeline, max_response_length: int = 2048):
         self.pipeline = pipeline
+        self.max_response_length = max_response_length
     
     def invoke(self, messages):
         # Convert messages to a single prompt
         prompt = "\n".join([msg.content for msg in messages])
         result = self.pipeline(
             prompt,
-            max_new_tokens=512,
+            max_new_tokens=self.max_response_length,
             do_sample=True,
             temperature=0.1,
             top_p=0.95,
@@ -51,17 +52,19 @@ class LocalLLM:
 
 class OllamaModelHandler:
     """Handler for Ollama models"""
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str, max_response_length: int = 2048):
         """Initialize Ollama model handler
         
         Args:
             model_name: Name of the Ollama model to use
+            max_response_length: Maximum number of tokens to generate (default: 2048)
         """
         # Remove 'ollama:' prefix if present
         if model_name and model_name.startswith("ollama:"):
             model_name = model_name.replace("ollama:", "")
         
         self.model_name = model_name
+        self.max_response_length = max_response_length
         self._check_ollama_running()
     
     def _check_ollama_running(self):
@@ -88,10 +91,14 @@ class OllamaModelHandler:
         except ImportError:
             raise ImportError("Failed to import ollama. Please install with: pip install ollama")
     
-    def __call__(self, prompt, max_new_tokens=512, temperature=0.1, top_p=0.95, **kwargs):
+    def __call__(self, prompt, max_new_tokens=None, temperature=0.1, top_p=0.95, **kwargs):
         """Generate text using the Ollama model"""
         try:
             import ollama
+            
+            # Use instance max_response_length if max_new_tokens not explicitly provided
+            if max_new_tokens is None:
+                max_new_tokens = self.max_response_length
             
             print(f"\nGenerating response with Ollama model: {self.model_name}")
             print(f"Prompt: {prompt[:100]}...")  # Print first 100 chars of prompt
@@ -122,7 +129,7 @@ class OllamaModelHandler:
 class LocalRAGAgent:
     def __init__(self, vector_store: VectorStore = None, model_name: str = None, 
                  use_cot: bool = False, collection: str = None, skip_analysis: bool = False,
-                 quantization: str = None, use_oracle_db: bool = True):
+                 quantization: str = None, use_oracle_db: bool = True, max_response_length: int = 2048):
         """Initialize local RAG agent with vector store and local LLM
         
         Args:
@@ -133,6 +140,7 @@ class LocalRAGAgent:
             skip_analysis: Whether to skip query analysis (kept for backward compatibility)
             quantization: Quantization method to use (None, '4bit', '8bit')
             use_oracle_db: Whether to use Oracle DB for vector storage (if False, uses ChromaDB)
+            max_response_length: Maximum number of tokens to generate in responses (default: 2048)
         """
         print(f"LocalRAGAgent init - model_name: {model_name}")
         
@@ -175,6 +183,7 @@ class LocalRAGAgent:
         self.collection = collection
         self.quantization = quantization
         self.model_name = model_name
+        self.max_response_length = max_response_length
         print('Model Name after assignment:', self.model_name)
         # skip_analysis parameter kept for backward compatibility but no longer used
         
@@ -196,7 +205,7 @@ class LocalRAGAgent:
             print("Note: Make sure Ollama is running on your system.")
             
             # Initialize Ollama model handler
-            self.ollama_handler = OllamaModelHandler(model_name)
+            self.ollama_handler = OllamaModelHandler(model_name, max_response_length=self.max_response_length)
             
             # Create pipeline-like interface
             self.pipeline = self.ollama_handler
@@ -241,8 +250,8 @@ class LocalRAGAgent:
                 )
                 print(f"Using specified model: {self.model_name}")
         
-        # Create LLM wrapper
-        self.llm = LocalLLM(self.pipeline)
+        # Create LLM wrapper with max_response_length
+        self.llm = LocalLLM(self.pipeline, max_response_length=self.max_response_length)
         
         # Initialize specialized agents if CoT is enabled
         self.agents = create_agents(self.llm, self.vector_store) if use_cot else None
@@ -407,8 +416,12 @@ class LocalRAGAgent:
             logger.error(f"Error in standard processing: {str(e)}")
             raise
     
-    def _generate_text(self, prompt: str, max_length: int = 512) -> str:
+    def _generate_text(self, prompt: str, max_length: int = None) -> str:
         """Generate text using the local model"""
+        # Use instance max_response_length if max_length not provided
+        if max_length is None:
+            max_length = self.max_response_length
+        
         # Log start time for performance monitoring
         start_time = time.time()
         
