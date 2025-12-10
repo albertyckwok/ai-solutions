@@ -1248,12 +1248,12 @@ def create_interface():
                 all_tests_output = gr.Textbox(label="Test Results", lines=15, interactive=False)
             
             # Event handlers
-            pdf_button.click(process_pdf, inputs=[pdf_file], outputs=[pdf_output])
-            url_button.click(process_url, inputs=[url_input], outputs=[url_output])
-            repo_button.click(process_repo, inputs=[repo_input], outputs=[repo_output])
+            pdf_button.click(process_pdf, inputs=[pdf_file], outputs=[pdf_output], api_name=False)
+            url_button.click(process_url, inputs=[url_input], outputs=[url_output], api_name=False)
+            repo_button.click(process_repo, inputs=[repo_input], outputs=[repo_output], api_name=False)
             
             # Model download event handler
-            download_button.click(download_model, inputs=[model_dropdown], outputs=[model_status])
+            download_button.click(download_model, inputs=[model_dropdown], outputs=[model_status], api_name=False)
             
             # Standard chat handlers
             standard_msg.submit(
@@ -1265,7 +1265,8 @@ def create_interface():
                     gr.State(False),  # use_cot=False
                     standard_collection_dropdown
                 ],
-                outputs=[standard_chatbot]
+                outputs=[standard_chatbot],
+                api_name=False
             )
             standard_send.click(
                 chat,
@@ -1276,9 +1277,10 @@ def create_interface():
                     gr.State(False),  # use_cot=False
                     standard_collection_dropdown
                 ],
-                outputs=[standard_chatbot]
+                outputs=[standard_chatbot],
+                api_name=False
             )
-            standard_clear.click(lambda: None, None, standard_chatbot, queue=False)
+            standard_clear.click(lambda: None, None, standard_chatbot, queue=False, api_name=False)
             
             # CoT chat handlers
             cot_msg.submit(
@@ -1290,7 +1292,8 @@ def create_interface():
                     gr.State(True),  # use_cot=True
                     cot_collection_dropdown
                 ],
-                outputs=[cot_chatbot]
+                outputs=[cot_chatbot],
+                api_name=False
             )
             cot_send.click(
                 chat,
@@ -1301,19 +1304,20 @@ def create_interface():
                     gr.State(True),  # use_cot=True
                     cot_collection_dropdown
                 ],
-                outputs=[cot_chatbot]
+                outputs=[cot_chatbot],
+                api_name=False
             )
-            cot_clear.click(lambda: None, None, cot_chatbot, queue=False)
+            cot_clear.click(lambda: None, None, cot_chatbot, queue=False, api_name=False)
             
             # A2A Testing Event Handlers
-            health_button.click(test_a2a_health, outputs=[health_output])
-            agent_card_button.click(test_a2a_agent_card, outputs=[agent_card_output])
-            discover_button.click(test_a2a_agent_discover, inputs=[discover_capability], outputs=[discover_output])
-            a2a_query_button.click(test_a2a_document_query, inputs=[a2a_query, a2a_collection, a2a_use_cot], outputs=[a2a_query_output])
-            task_create_button.click(test_a2a_task_create, inputs=[task_type, task_params], outputs=[task_create_output])
-            task_status_button.click(test_a2a_task_status, inputs=[task_id_input], outputs=[task_status_output])
-            task_list_button.click(get_a2a_task_list, outputs=[task_dashboard_output])
-            task_refresh_button.click(refresh_a2a_tasks, outputs=[task_dashboard_output])
+            health_button.click(test_a2a_health, outputs=[health_output], api_name=False)
+            agent_card_button.click(test_a2a_agent_card, outputs=[agent_card_output], api_name=False)
+            discover_button.click(test_a2a_agent_discover, inputs=[discover_capability], outputs=[discover_output], api_name=False)
+            a2a_query_button.click(test_a2a_document_query, inputs=[a2a_query, a2a_collection, a2a_use_cot], outputs=[a2a_query_output], api_name=False)
+            task_create_button.click(test_a2a_task_create, inputs=[task_type, task_params], outputs=[task_create_output], api_name=False)
+            task_status_button.click(test_a2a_task_status, inputs=[task_id_input], outputs=[task_status_output], api_name=False)
+            task_list_button.click(get_a2a_task_list, outputs=[task_dashboard_output], api_name=False)
+            task_refresh_button.click(refresh_a2a_tasks, outputs=[task_dashboard_output], api_name=False)
             
             # Run all tests function
             def run_all_a2a_tests():
@@ -1372,14 +1376,14 @@ def create_interface():
                 
                 return "\n".join(results)
             
-            run_all_tests_button.click(run_all_a2a_tests, outputs=[all_tests_output])
+            run_all_tests_button.click(run_all_a2a_tests, outputs=[all_tests_output], api_name=False)
             
             # Individual test event handlers
-            individual_health_button.click(test_individual_health, outputs=[all_tests_output])
-            individual_card_button.click(test_individual_card, outputs=[all_tests_output])
-            individual_discover_button.click(test_individual_discover, outputs=[all_tests_output])
-            individual_query_button.click(test_individual_query, outputs=[all_tests_output])
-            individual_task_button.click(test_individual_task, outputs=[all_tests_output])
+            individual_health_button.click(test_individual_health, outputs=[all_tests_output], api_name=False)
+            individual_card_button.click(test_individual_card, outputs=[all_tests_output], api_name=False)
+            individual_discover_button.click(test_individual_discover, outputs=[all_tests_output], api_name=False)
+            individual_query_button.click(test_individual_query, outputs=[all_tests_output], api_name=False)
+            individual_task_button.click(test_individual_task, outputs=[all_tests_output], api_name=False)
             
             # A2A Chat Interface Event Handlers
             a2a_msg.submit(
@@ -1391,7 +1395,8 @@ def create_interface():
                     a2a_use_cot_state,  # Use state instead of checkbox for API generation consistency
                     a2a_collection_dropdown
                 ],
-                outputs=[a2a_chatbot]
+                outputs=[a2a_chatbot],
+                api_name=False
             )
             a2a_send.click(
                 a2a_chat,
@@ -1402,10 +1407,11 @@ def create_interface():
                     a2a_use_cot_state,  # Use state instead of checkbox for API generation consistency
                     a2a_collection_dropdown
                 ],
-                outputs=[a2a_chatbot]
+                outputs=[a2a_chatbot],
+                api_name=False
             )
-            a2a_clear_button.click(lambda: None, None, a2a_chatbot, queue=False)
-            a2a_status_button.click(test_a2a_health, outputs=[a2a_status_output])
+            a2a_clear_button.click(lambda: None, None, a2a_chatbot, queue=False, api_name=False)
+            a2a_status_button.click(test_a2a_health, outputs=[a2a_status_output], api_name=False)
             
             # Sync checkbox with state component for API generation consistency
             def sync_cot_state(checkbox_value):
@@ -1415,7 +1421,8 @@ def create_interface():
                 sync_cot_state,
                 inputs=[a2a_use_cot_checkbox],
                 outputs=[a2a_use_cot_state],
-                queue=False  # Prevent API generation issues during initialization
+                queue=False,  # Prevent API generation issues during initialization
+                api_name=False
             )
             
             # Instructions
