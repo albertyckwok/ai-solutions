@@ -223,6 +223,10 @@ def process_repo(repo_path: str) -> str:
     except Exception as e:
         return f"✗ Error processing repository: {str(e)}"
 
+def sanitize_history(history: List[List[str]]) -> List[List[str]]:
+    """Sanitize history by replacing None values with empty strings for Gradio compatibility"""
+    return [[msg if msg is not None else "", resp if resp is not None else ""] for msg, resp in history]
+
 def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool, collection: str) -> List[List[str]]:
     """Process chat message using selected agent and collection"""
     try:
@@ -314,7 +318,7 @@ def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool,
                 print(step_text)
                 
                 # Add intermediate response to chat history to show progress
-                history.append([None, f"🔄 Step {i} Conclusion:\n{step}"])
+                history.append(["", f"🔄 Step {i} Conclusion:\n{step}"])
             
             # Add final answer
             print("\nFinal Answer:")
@@ -378,7 +382,7 @@ def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool,
         print("Response complete")
         print("="*50 + "\n")
         
-        return history
+        return sanitize_history(history)
     except Exception as e:
         error_msg = f"Error processing query: {str(e)}"
         print(f"\nError occurred:")
@@ -386,7 +390,7 @@ def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool,
         print(error_msg)
         print("="*50 + "\n")
         history.append([message, error_msg])
-        return history
+        return sanitize_history(history)
 
 # A2A Testing Functions
 def test_a2a_health() -> str:
@@ -678,7 +682,7 @@ def a2a_chat(message: str, history: List[List[str]], agent_type: str, use_cot: b
                         return history
             
             # Log the successful planning
-            history.append([None, f"🎯 Planning:\n{plan}"])
+            history.append(["", f"🎯 Planning:\n{plan}"])
             
             # Collect reasoning steps
             reasoning_steps = []
@@ -736,7 +740,7 @@ def a2a_chat(message: str, history: List[List[str]], agent_type: str, use_cot: b
                     print(f"   ✅ Conclusion reached")
                 
                 reasoning_steps.append(conclusion)
-                history.append([None, f"🔄 Step {i} - {step[:50]}...\n{conclusion}"])
+                history.append(["", f"🔄 Step {i} - {step[:50]}...\n{conclusion}"])
             
             # Step 4: Call Synthesizer Agent via A2A
             print(f"\n5️⃣ Synthesizing final answer...")
@@ -824,7 +828,7 @@ def a2a_chat(message: str, history: List[List[str]], agent_type: str, use_cot: b
             print("✅ A2A Standard Response complete")
             print("="*50 + "\n")
         
-        return history
+        return sanitize_history(history)
         
     except Exception as e:
         error_msg = f"A2A Chat Error: {str(e)}"
@@ -835,7 +839,7 @@ def a2a_chat(message: str, history: List[List[str]], agent_type: str, use_cot: b
         print(traceback.format_exc())
         print("="*50 + "\n")
         history.append([message, error_msg])
-        return history
+        return sanitize_history(history)
 
 def create_interface():
     """Create Gradio interface"""
